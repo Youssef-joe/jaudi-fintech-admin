@@ -1,148 +1,134 @@
 
-import React, { useState } from 'react';
-import { Filter, Search, Download } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, Filter, Calendar, MapPin, DollarSign } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 type UserRole = 'Global Admin' | 'Regional Admin' | 'Sending Partner' | 'Receiving Partner';
+type TransactionStatus = 'Pending' | 'Approved' | 'Rejected';
+
+interface Transaction {
+  id: string;
+  amountUSD: number;
+  amountUSDC: number;
+  status: TransactionStatus;
+  region: string;
+  timestamp: string;
+  sender?: string;
+  receiver?: string;
+}
 
 interface TransactionsTableProps {
   currentRole: UserRole;
 }
 
-const mockTransactions = [
-  {
-    id: 'TXN-001',
-    amountUSD: 1000.00,
-    amountUSDC: 999.80,
-    status: 'Approved',
-    region: 'North America',
-    timestamp: '2024-01-15 14:30:00'
-  },
-  {
-    id: 'TXN-002',
-    amountUSD: 2500.00,
-    amountUSDC: 2499.50,
-    status: 'Pending',
-    region: 'Europe',
-    timestamp: '2024-01-15 13:45:00'
-  },
-  {
-    id: 'TXN-003',
-    amountUSD: 750.00,
-    amountUSDC: 749.85,
-    status: 'Rejected',
-    region: 'Asia Pacific',
-    timestamp: '2024-01-15 12:20:00'
-  },
-  {
-    id: 'TXN-004',
-    amountUSD: 5000.00,
-    amountUSDC: 4999.00,
-    status: 'Approved',
-    region: 'North America',
-    timestamp: '2024-01-15 11:15:00'
-  },
-  {
-    id: 'TXN-005',
-    amountUSD: 320.00,
-    amountUSDC: 319.94,
-    status: 'Pending',
-    region: 'Latin America',
-    timestamp: '2024-01-15 10:30:00'
-  }
+const mockTransactions: Transaction[] = [
+  { id: 'TXN-001', amountUSD: 1000, amountUSDC: 999.80, status: 'Approved', region: 'US-East', timestamp: '2024-01-15 14:30:00', sender: 'John Doe', receiver: 'Jane Smith' },
+  { id: 'TXN-002', amountUSD: 2500, amountUSDC: 2499.50, status: 'Pending', region: 'EU-West', timestamp: '2024-01-15 13:45:00', sender: 'Alice Johnson', receiver: 'Bob Wilson' },
+  { id: 'TXN-003', amountUSD: 750, amountUSDC: 749.85, status: 'Rejected', region: 'APAC', timestamp: '2024-01-15 12:20:00', sender: 'Charlie Brown', receiver: 'Diana Prince' },
+  { id: 'TXN-004', amountUSD: 5000, amountUSDC: 4999.00, status: 'Approved', region: 'US-West', timestamp: '2024-01-15 11:15:00', sender: 'Eve Davis', receiver: 'Frank Miller' },
+  { id: 'TXN-005', amountUSD: 1250, amountUSDC: 1249.75, status: 'Pending', region: 'EU-Central', timestamp: '2024-01-15 10:30:00', sender: 'Grace Lee', receiver: 'Henry Ford' },
 ];
 
-const getStatusBadge = (status: string) => {
+const getStatusBadgeVariant = (status: TransactionStatus) => {
   switch (status) {
-    case 'Approved':
-      return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
-    case 'Pending':
-      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-    case 'Rejected':
-      return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-    default:
-      return <Badge>{status}</Badge>;
+    case 'Approved': return 'default';
+    case 'Pending': return 'secondary';
+    case 'Rejected': return 'destructive';
+    default: return 'secondary';
   }
 };
 
-const filterTransactionsByRole = (transactions: typeof mockTransactions, role: UserRole) => {
-  switch (role) {
-    case 'Regional Admin':
-      return transactions.filter(t => t.region === 'North America');
-    case 'Sending Partner':
-      return transactions.filter(t => t.status !== 'Rejected');
-    case 'Receiving Partner':
-      return transactions.filter(t => t.status === 'Approved');
-    default:
-      return transactions;
+const getStatusBadgeColor = (status: TransactionStatus) => {
+  switch (status) {
+    case 'Approved': return 'bg-green-100 text-green-800';
+    case 'Pending': return 'bg-yellow-100 text-yellow-800';
+    case 'Rejected': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
   }
 };
 
 export function TransactionsTable({ currentRole }: TransactionsTableProps) {
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [regionFilter, setRegionFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<TransactionStatus | 'All'>('All');
+  const [regionFilter, setRegionFilter] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
-  const filteredTransactions = filterTransactionsByRole(mockTransactions, currentRole)
-    .filter(transaction => {
-      const matchesStatus = statusFilter === 'all' || transaction.status.toLowerCase() === statusFilter;
-      const matchesRegion = regionFilter === 'all' || transaction.region === regionFilter;
-      const matchesSearch = transaction.id.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredTransactions = useMemo(() => {
+    return mockTransactions.filter(transaction => {
+      const matchesStatus = statusFilter === 'All' || transaction.status === statusFilter;
+      const matchesRegion = regionFilter === 'All' || transaction.region === regionFilter;
+      const matchesSearch = transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           transaction.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           transaction.receiver?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Role-based filtering
+      if (currentRole === 'Regional Admin') {
+        // Regional admin only sees transactions from US regions
+        return matchesStatus && matchesRegion && matchesSearch && transaction.region.startsWith('US');
+      }
+      
       return matchesStatus && matchesRegion && matchesSearch;
     });
+  }, [statusFilter, regionFilter, searchTerm, currentRole]);
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const uniqueRegions = [...new Set(mockTransactions.map(t => t.region))];
 
   return (
-    <div className="p-6">
+    <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search by Transaction ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+      <div className="flex flex-wrap gap-4 p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center space-x-2">
+          <Search className="w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search transactions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full md:w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
-        {currentRole === 'Global Admin' && (
-          <Select value={regionFilter} onValueChange={setRegionFilter}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Region" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Regions</SelectItem>
-              <SelectItem value="North America">North America</SelectItem>
-              <SelectItem value="Europe">Europe</SelectItem>
-              <SelectItem value="Asia Pacific">Asia Pacific</SelectItem>
-              <SelectItem value="Latin America">Latin America</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-        <Button variant="outline" size="sm">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        
+        <div className="flex items-center space-x-2">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as TransactionStatus | 'All')}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="All">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <MapPin className="w-4 h-4 text-gray-500" />
+          <select
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="All">All Regions</option>
+            {uniqueRegions.map(region => (
+              <option key={region} value={region}>{region}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -150,29 +136,82 @@ export function TransactionsTable({ currentRole }: TransactionsTableProps) {
               <TableHead>Amount (USD)</TableHead>
               <TableHead>Amount (USDC)</TableHead>
               <TableHead>Status</TableHead>
-              {currentRole === 'Global Admin' && <TableHead>Region</TableHead>}
+              <TableHead>Region</TableHead>
+              {(currentRole === 'Global Admin' || currentRole === 'Regional Admin') && <TableHead>Sender</TableHead>}
+              {(currentRole === 'Global Admin' || currentRole === 'Regional Admin') && <TableHead>Receiver</TableHead>}
               <TableHead>Timestamp</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredTransactions.map((transaction) => (
-              <TableRow key={transaction.id} className="hover:bg-gray-50">
+            {paginatedTransactions.map((transaction) => (
+              <TableRow key={transaction.id}>
                 <TableCell className="font-medium">{transaction.id}</TableCell>
-                <TableCell>${transaction.amountUSD.toFixed(2)}</TableCell>
-                <TableCell>{transaction.amountUSDC.toFixed(2)} USDC</TableCell>
-                <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                {currentRole === 'Global Admin' && <TableCell>{transaction.region}</TableCell>}
-                <TableCell className="text-gray-500">{transaction.timestamp}</TableCell>
+                <TableCell>
+                  <div className="flex items-center">
+                    <DollarSign className="w-4 h-4 mr-1 text-green-600" />
+                    ${transaction.amountUSD.toLocaleString()}
+                  </div>
+                </TableCell>
+                <TableCell>${transaction.amountUSDC.toFixed(2)}</TableCell>
+                <TableCell>
+                  <Badge className={getStatusBadgeColor(transaction.status)}>
+                    {transaction.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{transaction.region}</TableCell>
+                {(currentRole === 'Global Admin' || currentRole === 'Regional Admin') && (
+                  <TableCell>{transaction.sender}</TableCell>
+                )}
+                {(currentRole === 'Global Admin' || currentRole === 'Regional Admin') && (
+                  <TableCell>{transaction.receiver}</TableCell>
+                )}
+                <TableCell className="text-sm text-gray-500">
+                  {new Date(transaction.timestamp).toLocaleString()}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
 
-      {filteredTransactions.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No transactions found matching your criteria.
-        </div>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.max(prev - 1, 1));
+                }}
+              />
+            </PaginationItem>
+            {[...Array(totalPages)].map((_, i) => (
+              <PaginationItem key={i + 1}>
+                <PaginationLink 
+                  href="#" 
+                  isActive={currentPage === i + 1}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage(i + 1);
+                  }}
+                >
+                  {i + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCurrentPage(prev => Math.min(prev + 1, totalPages));
+                }}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       )}
     </div>
   );
