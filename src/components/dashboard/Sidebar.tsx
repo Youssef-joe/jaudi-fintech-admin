@@ -5,18 +5,24 @@ import { Sidebar as SidebarUI, SidebarContent, SidebarGroup, SidebarGroupContent
 
 type UserRole = 'Global Admin' | 'Regional Admin' | 'Sending Partner' | 'Receiving Partner';
 
+interface NavigationItem {
+  title: string;
+  icon: React.ComponentType<any>;
+  active?: boolean;
+}
+
 interface SidebarProps {
   currentRole: UserRole;
 }
 
-const getNavigationItems = (role: UserRole) => {
-  const baseItems = [
+const getNavigationItems = (role: UserRole): NavigationItem[] => {
+  const baseItems: NavigationItem[] = [
     { title: 'Dashboard', icon: Home, active: true },
     { title: 'Transactions', icon: ArrowDownUp },
     { title: 'Audit Logs', icon: FileText },
   ];
 
-  const roleSpecificItems = {
+  const roleSpecificItems: Record<UserRole, NavigationItem[]> = {
     'Global Admin': [
       { title: 'User Management', icon: Users },
       { title: 'Partners', icon: Building },
