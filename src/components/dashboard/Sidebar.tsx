@@ -19,7 +19,7 @@ const getNavigationItems = (role: UserRole): NavigationItem[] => {
   const baseItems: NavigationItem[] = [
     { title: 'Dashboard', icon: Home, active: true },
     { title: 'Transactions', icon: ArrowDownUp },
-    { title: 'Audit Logs', icon: FileText },
+    { title: 'AuditLogs', icon: FileText },
   ];
 
   const roleSpecificItems: Record<UserRole, NavigationItem[]> = {
@@ -86,7 +86,7 @@ export function Sidebar({ currentRole }: SidebarProps) {
                     asChild 
                     className={item.active ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' : 'hover:bg-gray-50'}
                   >
-                    <a href="#" className="flex items-center space-x-3 px-3 py-2">
+                    <a href={item.title === "Dashboard" ? "/" : item.title.toLowerCase()} className="flex items-center space-x-3 px-3 py-2">
                       <item.icon className="w-5 h-5" />
                       <span className="font-medium">{item.title}</span>
                     </a>

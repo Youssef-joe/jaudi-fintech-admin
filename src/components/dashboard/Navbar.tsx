@@ -5,6 +5,8 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import {useNavigate} from "react-router-dom";
+
 
 type UserRole = 'Global Admin' | 'Regional Admin' | 'Sending Partner' | 'Receiving Partner';
 
@@ -32,6 +34,13 @@ const getRoleBadgeColor = (role: UserRole) => {
 
 export function Navbar({ user, role, onRoleChange }: NavbarProps) {
   const roles: UserRole[] = ['Global Admin', 'Regional Admin', 'Sending Partner', 'Receiving Partner'];
+  const navigate = useNavigate();
+  
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user")
+    navigate("/login")
+  }
 
   return (
     <nav className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
@@ -45,23 +54,7 @@ export function Navbar({ user, role, onRoleChange }: NavbarProps) {
       </div>
 
       <div className="flex items-center space-x-4">
-        {/* Role Switcher for Demo */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="hidden lg:flex">
-              Switch Role <ChevronDown className="w-4 h-4 ml-1" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Switch Role (Demo)</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {roles.map((r) => (
-              <DropdownMenuItem key={r} onClick={() => onRoleChange(r)}>
-                <span className={role === r ? 'font-semibold' : ''}>{r}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+       
 
         {/* Notifications */}
         <Button variant="ghost" size="sm" className="relative">
@@ -98,7 +91,7 @@ export function Navbar({ user, role, onRoleChange }: NavbarProps) {
               Profile Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600">
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </DropdownMenuItem>

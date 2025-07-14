@@ -1,45 +1,18 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Filter, Calendar, MapPin, DollarSign } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-
-type UserRole = 'Global Admin' | 'Regional Admin' | 'Sending Partner' | 'Receiving Partner';
-type TransactionStatus = 'Pending' | 'Approved' | 'Rejected';
-
-interface Transaction {
-  id: string;
-  amountUSD: number;
-  amountUSDC: number;
-  status: TransactionStatus;
-  region: string;
-  timestamp: string;
-  sender?: string;
-  receiver?: string;
-}
-
-interface TransactionsTableProps {
-  currentRole: UserRole;
-}
-
-const mockTransactions: Transaction[] = [
-  { id: 'TXN-001', amountUSD: 1000, amountUSDC: 999.80, status: 'Approved', region: 'US-East', timestamp: '2024-01-15 14:30:00', sender: 'John Doe', receiver: 'Jane Smith' },
-  { id: 'TXN-002', amountUSD: 2500, amountUSDC: 2499.50, status: 'Pending', region: 'EU-West', timestamp: '2024-01-15 13:45:00', sender: 'Alice Johnson', receiver: 'Bob Wilson' },
-  { id: 'TXN-003', amountUSD: 750, amountUSDC: 749.85, status: 'Rejected', region: 'APAC', timestamp: '2024-01-15 12:20:00', sender: 'Charlie Brown', receiver: 'Diana Prince' },
-  { id: 'TXN-004', amountUSD: 5000, amountUSDC: 4999.00, status: 'Approved', region: 'US-West', timestamp: '2024-01-15 11:15:00', sender: 'Eve Davis', receiver: 'Frank Miller' },
-  { id: 'TXN-005', amountUSD: 1250, amountUSDC: 1249.75, status: 'Pending', region: 'EU-Central', timestamp: '2024-01-15 10:30:00', sender: 'Grace Lee', receiver: 'Henry Ford' },
-];
-
-const getStatusBadgeVariant = (status: TransactionStatus) => {
-  switch (status) {
-    case 'Approved': return 'default';
-    case 'Pending': return 'secondary';
-    case 'Rejected': return 'destructive';
-    default: return 'secondary';
-  }
-};
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from '@/components/ui/pagination';
+import { fetchTransactions } from "@/utils/api.ts";
+import { Transaction, TransactionStatus, UserRole, TransactionsTableProps } from "@/types/transactions.ts";
 
 const getStatusBadgeColor = (status: TransactionStatus) => {
   switch (status) {
@@ -51,37 +24,49 @@ const getStatusBadgeColor = (status: TransactionStatus) => {
 };
 
 export function TransactionsTable({ currentRole }: TransactionsTableProps) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | 'All'>('All');
   const [regionFilter, setRegionFilter] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  useEffect(() => {
+    const loadTransactions = async () => {
+      try {
+        const data = await fetchTransactions();
+        setTransactions(data);
+      } catch (error) {
+        console.error("Error fetching transactions:", error);
+      }
+    };
+    loadTransactions();
+  }, []);
+
   const filteredTransactions = useMemo(() => {
-    return mockTransactions.filter(transaction => {
+    return transactions.filter(transaction => {
       const matchesStatus = statusFilter === 'All' || transaction.status === statusFilter;
       const matchesRegion = regionFilter === 'All' || transaction.region === regionFilter;
-      const matchesSearch = transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.receiver?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = transaction._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.sender?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      transaction.receiver?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Role-based filtering
       if (currentRole === 'Regional Admin') {
-        // Regional admin only sees transactions from US regions
         return matchesStatus && matchesRegion && matchesSearch && transaction.region.startsWith('US');
       }
       
       return matchesStatus && matchesRegion && matchesSearch;
     });
-  }, [statusFilter, regionFilter, searchTerm, currentRole]);
-
+  }, [transactions, statusFilter, regionFilter, searchTerm, currentRole]);
+  
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const paginatedTransactions = filteredTransactions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const uniqueRegions = [...new Set(mockTransactions.map(t => t.region))];
+  
+  const uniqueRegions = [...new Set(transactions.map(t => t.region))];
+ 
 
   return (
     <div className="space-y-4">
@@ -97,7 +82,7 @@ export function TransactionsTable({ currentRole }: TransactionsTableProps) {
             className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Filter className="w-4 h-4 text-gray-500" />
           <select
@@ -144,8 +129,8 @@ export function TransactionsTable({ currentRole }: TransactionsTableProps) {
           </TableHeader>
           <TableBody>
             {paginatedTransactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell className="font-medium">{transaction.id}</TableCell>
+              <TableRow key={transaction._id}>
+                <TableCell className="font-medium">{transaction._id}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
                     <DollarSign className="w-4 h-4 mr-1 text-green-600" />
@@ -179,8 +164,8 @@ export function TransactionsTable({ currentRole }: TransactionsTableProps) {
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious 
-                href="#" 
+              <PaginationPrevious
+                href="#"
                 onClick={(e) => {
                   e.preventDefault();
                   setCurrentPage(prev => Math.max(prev - 1, 1));
@@ -189,8 +174,8 @@ export function TransactionsTable({ currentRole }: TransactionsTableProps) {
             </PaginationItem>
             {[...Array(totalPages)].map((_, i) => (
               <PaginationItem key={i + 1}>
-                <PaginationLink 
-                  href="#" 
+                <PaginationLink
+                  href="#"
                   isActive={currentPage === i + 1}
                   onClick={(e) => {
                     e.preventDefault();
@@ -202,8 +187,8 @@ export function TransactionsTable({ currentRole }: TransactionsTableProps) {
               </PaginationItem>
             ))}
             <PaginationItem>
-              <PaginationNext 
-                href="#" 
+              <PaginationNext
+                href="#"
                 onClick={(e) => {
                   e.preventDefault();
                   setCurrentPage(prev => Math.min(prev + 1, totalPages));
