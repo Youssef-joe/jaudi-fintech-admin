@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/pagination';
 import { fetchAuditLogs } from '@/utils/auditlogs.ts';
 import { AuditLog } from '@/types/AuditLogs.ts';
+import { useNavigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import {Sidebar} from "./../components/dashboard/Sidebar.tsx";
 
@@ -34,6 +35,11 @@ type UserRole =
   const [currentPage, setCurrentPage] = useState(1);
   const [currentRole, setCurrentRole] = useState<UserRole>("Global Admin")
   const itemsPerPage = 6;
+  const navigate = useNavigate();
+
+  function handleGetBack () {
+    navigate("/")
+  }
 
   useEffect(() => {
     const loadLogs = async () => {
@@ -79,6 +85,9 @@ type UserRole =
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
+
+      <button onClick={handleGetBack} className= "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ml-5" > Get Back To Dashboard </button>
+
 
       {/* Table */}
       <div className="rounded-lg border">
